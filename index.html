@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RenoTrack</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#222;--border:#2e2e2e;
+    --orange:#f97316;--orange-dim:#7c3a0c;
+    --green:#22c55e;--green-dim:#14532d;
+    --red:#ef4444;--red-dim:#7f1d1d;
+    --yellow:#eab308;--yellow-dim:#713f12;
+    --blue:#60a5fa;--blue-dim:#1e3a5f;
+    --purple:#a5b4fc;--purple-dim:#1e1b4b;
+    --text:#f5f5f5;--muted:#888;--faint:#444;
+    --radius:10px;--mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100%;}
+
+  header{background:var(--surface);border-bottom:2px solid var(--orange);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:var(--orange);}
+  .logo span{color:var(--text);}
+  .sync-pill{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:.62rem;letter-spacing:1px;color:var(--muted);}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .4s;}
+  .sync-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .sync-dot.err{background:var(--red);}
+
+  .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;}
+  .tab-btn{flex:1;padding:12px 6px;font-size:.75rem;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:inherit;}
+  .tab-btn.active{color:var(--orange);border-bottom-color:var(--orange);}
+
+  .proj-bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px;overflow-x:auto;}
+  .proj-chip{display:flex;align-items:center;gap:6px;white-space:nowrap;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5px 14px;font-size:.75rem;font-weight:600;cursor:pointer;transition:all .2s;color:var(--muted);}
+  .proj-chip.active{border-color:var(--orange);color:var(--orange);background:rgba(249,115,22,.1);}
+  .proj-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+
+  main{padding:14px 16px;max-width:800px;margin:0 auto;}
+
+  .divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;}
+  .divider-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--muted);white-space:nowrap;}
+  .divider-line{flex:1;height:1px;background:var(--border);}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+  .card.full{grid-column:1/-1;}
+  .card-label{font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .card-val{font-family:var(--mono);font-size:1.25rem;font-weight:600;}
+  .cv-orange{color:var(--orange);}.cv-green{color:var(--green);}.cv-red{color:var(--red);}
+
+  .prog-track{height:6px;background:var(--border);border-radius:99px;margin-top:8px;overflow:hidden;}
+  .prog-fill{height:100%;border-radius:99px;transition:width .6s ease;}
+
+  .badge{font-size:.62rem;font-family:var(--mono);letter-spacing:.4px;padding:2px 8px;border-radius:99px;white-space:nowrap;}
+  .badge.cash{background:var(--yellow-dim);color:var(--yellow);}
+  .badge.etransfer{background:var(--blue-dim);color:var(--blue);}
+  .badge.inv{background:var(--purple-dim);color:var(--purple);}
+  .badge.noinv{background:var(--surface2);color:var(--muted);}
+
+  .tag-paid{font-size:.62rem;background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:99px;font-weight:600;}
+  .tag-partial{font-size:.62rem;background:var(--yellow-dim);color:var(--yellow);padding:2px 8px;border-radius:99px;font-weight:600;}
+  .tag-unpaid{font-size:.62rem;background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:99px;font-weight:600;}
+
+  .proj-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:border-color .2s;}
+  .proj-card:hover{border-color:var(--orange);}
+  .proj-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .proj-card-name{font-weight:600;font-size:.95rem;display:flex;align-items:center;gap:8px;}
+  .proj-card-total{font-family:var(--mono);font-size:.9rem;color:var(--orange);font-weight:600;}
+  .proj-card-meta{display:flex;gap:8px;font-size:.7rem;font-family:var(--mono);color:var(--muted);flex-wrap:wrap;margin-top:6px;}
+
+  .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--muted);}
+
+  .btn-add{background:var(--orange);color:#000;border:none;font-family:inherit;font-size:.76rem;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer;transition:opacity .15s;}
+  .btn-add:hover{opacity:.85;}
+  .btn-sm{font-family:inherit;font-size:.7rem;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:all .15s;}
+  .btn-pay{background:var(--green-dim);color:var(--green);border-color:var(--green);}
+  .btn-pay:hover{background:var(--green);color:#000;}
+  .btn-edit{background:var(--surface2);color:var(--text);border-color:var(--faint);}
+  .btn-edit:hover{border-color:var(--orange);color:var(--orange);}
+  .btn-del{background:var(--red-dim);color:var(--red);border-color:var(--red);margin-left:auto;}
+  .btn-del:hover{background:var(--red);color:#fff;}
+
+  .item-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;animation:slideIn .22s ease;}
+  @keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+  .item-card.paid{border-left:3px solid var(--green);}
+  .item-card.partial{border-left:3px solid var(--yellow);}
+  .item-card.unpaid{border-left:3px solid var(--faint);}
+  .item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;}
+  .item-name{font-weight:600;font-size:.92rem;flex:1;}
+  .item-total{font-family:var(--mono);font-size:.92rem;font-weight:600;color:var(--orange);white-space:nowrap;}
+  .item-meta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;}
+  .item-prog{margin-bottom:10px;}
+  .item-prog-label{display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);font-family:var(--mono);margin-bottom:4px;}
+  .item-actions{display:flex;gap:7px;flex-wrap:wrap;}
+
+  .paid-log{margin-top:8px;border-top:1px solid var(--border);padding-top:8px;}
+  .paid-log-title{font-size:.62rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .paid-row{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;font-family:var(--mono);padding:4px 0;border-bottom:1px solid var(--border);gap:6px;}
+  .paid-row:last-child{border-bottom:none;}
+  .del-pay{background:none;border:none;color:var(--red);cursor:pointer;font-size:.68rem;padding:2px 6px;flex-shrink:0;}
+
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:flex-end;justify-content:center;padding:0;}
+  @media(min-width:500px){.modal-overlay{align-items:center;padding:16px;}}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px 14px 0 0;padding:22px 18px 32px;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;animation:slideUp .22s ease;}
+  @media(min-width:500px){.modal{border-radius:14px;padding-bottom:22px;}}
+  @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+  .modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;margin-bottom:18px;color:var(--orange);}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .field input,.field select,.field textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:.88rem;padding:10px 12px;border-radius:8px;outline:none;transition:border-color .2s;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);}
+  .field textarea{resize:vertical;min-height:60px;}
+  select option{background:var(--surface2);}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .hst-hint{font-size:.68rem;color:var(--muted);font-family:var(--mono);margin-top:4px;}
+  .modal-footer{display:flex;gap:10px;margin-top:18px;}
+  .btn-primary{flex:1;background:var(--orange);color:#000;border:none;font-family:inherit;font-size:.84rem;font-weight:700;padding:11px;border-radius:8px;cursor:pointer;transition:opacity .15s;}
+  .btn-primary:hover{opacity:.85;}
+  .btn-cancel{background:var(--surface2);color:var(--muted);border:1px solid var(--border);font-family:inherit;font-size:.84rem;padding:11px 16px;border-radius:8px;cursor:pointer;}
+
+  .color-swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+  .swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s;}
+  .swatch.sel{border-color:#fff;transform:scale(1.2);}
+
+  .btable{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:8px;}
+  .btable th{text-align:left;color:var(--muted);font-size:.62rem;letter-spacing:1px;text-transform:uppercase;padding:4px 0;border-bottom:1px solid var(--border);font-weight:500;}
+  .btable td{padding:6px 0;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .btable tr:last-child td{border-bottom:none;}
+  .mono{font-family:var(--mono);}
+
+  .empty{text-align:center;padding:40px 20px;color:var(--muted);}
+  .empty .icon{font-size:2rem;margin-bottom:10px;}
+  .empty p{font-size:.82rem;line-height:1.6;}
+
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:9px 18px;font-size:.78rem;font-weight:500;transition:transform .3s ease;z-index:999;white-space:nowrap;pointer-events:none;}
+  #toast.show{transform:translateX(-50%) translateY(0);}
+
+  @media(max-width:400px){.cards{grid-template-columns:1fr;}.cards .card.full{grid-column:1;}.field-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">RENO<span>TRACK</span></div>
+  <div class="sync-pill"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">CONNECTING</span></div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('items',this)">📋 Line Items</button>
+  <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ Settings</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard">
+    <div class="divider"><div class="divider-label">All Projects · Cumulative</div><div class="divider-line"></div></div>
+    <div class="cards" id="cum-cards"><div class="card full" style="color:var(--muted);font-size:.8rem;">Loading…</div></div>
+    <div class="divider"><div class="divider-label">Per Project Breakdown</div><div class="divider-line"></div></div>
+    <div id="proj-summaries"></div>
+  </div>
+
+  <!-- LINE ITEMS -->
+  <div id="tab-items" style="display:none">
+    <div id="proj-selector-bar" style="margin:0 -16px;margin-bottom:14px;"></div>
+    <div class="section-hdr">
+      <div class="section-title" id="items-proj-title">Select a Project</div>
+      <button class="btn-add" onclick="openAddItemModal()">＋ Add Item</button>
+    </div>
+    <div id="items-list"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" style="display:none">
+    <div class="section-hdr">
+      <div class="section-title">Projects</div>
+      <button class="btn-add" onclick="openAddProjModal()">＋ New Project</button>
+    </div>
+    <div id="settings-proj-list"></div>
+    <div class="divider" style="margin-top:24px;"><div class="divider-label">App Info</div><div class="divider-line"></div></div>
+    <div class="card" style="margin-top:10px;">
+      <div class="card-label">HST Rate · Ontario</div>
+      <div style="font-family:var(--mono);font-size:1.1rem;font-weight:600;color:var(--orange);margin-top:4px;">13%</div>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:4px;">Applied when "price excludes HST" is selected. Cash items always skip HST.</div>
+    </div>
+  </div>
+
+</main>
+
+<!-- PROJECT MODAL -->
+<div class="modal-overlay" id="modal-proj">
+  <div class="modal">
+    <div class="modal-title" id="modal-proj-title">New Project</div>
+    <div class="field"><label>Project Name</label><input id="pf-name" placeholder="e.g. Basement Reno Phase 2"/></div>
+    <div class="field"><label>Description (optional)</label><input id="pf-desc" placeholder="Brief scope note"/></div>
+    <div class="field"><label>Colour</label><div class="color-swatches" id="color-swatches"></div><input type="hidden" id="pf-color"/></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-proj')">Cancel</button>
+      <button class="btn-primary" onclick="saveProject()">Save Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="modal-overlay" id="modal-item">
+  <div class="modal">
+    <div class="modal-title" id="modal-item-title">Add Item</div>
+    <div class="field"><label>Description / Particulars</label><input id="f-name" placeholder="e.g. Drywall & Insulation"/></div>
+    <div class="field"><label>Notes (optional)</label><textarea id="f-notes" rows="2" placeholder="Contractor, scope detail…"></textarea></div>
+    <div class="field-row">
+      <div class="field">
+        <label>Amount ($)</label>
+        <input id="f-amount" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcHst()"/>
+        <div class="hst-hint" id="hst-hint">–</div>
+      </div>
+      <div class="field">
+        <label>Includes HST?</label>
+        <select id="f-hst" onchange="calcHst()">
+          <option value="yes">Yes (incl. HST)</option>
+          <option value="no">No (add 13%)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Invoice Raised?</label>
+        <select id="f-invoice"><option value="yes">Yes</option><option value="no">No</option></select>
+      </div>
+      <div class="field">
+        <label>Payment Method</label>
+        <select id="f-method">
+          <option value="cash">Cash (no HST)</option>
+          <option value="etransfer">E-Transfer</option>
+          <option value="cheque">Cheque</option>
+          <option value="credit">Credit Card</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <select id="f-cat">
+        <option>Framing</option><option>Drywall</option><option>Electrical</option><option>Plumbing</option>
+        <option>Flooring</option><option>Painting</option><option>HVAC</option><option>Insulation</option>
+        <option>Windows &amp; Doors</option><option>Cabinetry</option><option>Materials</option>
+        <option>Labour</option><option>Permits &amp; Fees</option><option>Other</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-item')">Cancel</button>
+      <button class="btn-primary" onclick="saveItem()">Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="modal-pay">
+  <div class="modal">
+    <div class="modal-title">Record Payment</div>
+    <div id="pay-item-label" style="font-size:.82rem;color:var(--muted);margin-bottom:14px;line-height:1.5;"></div>
+    <div class="field-row">
+      <div class="field"><label>Amount Paid ($)</label><input id="p-amount" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+      <div class="field">
+        <label>Method</label>
+        <select id="p-method"><option value="cash">Cash</option><option value="etransfer">E-Transfer</option><option value="cheque">Cheque</option><option value="credit">Credit Card</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Date</label><input id="p-date" type="date"/></div>
+    <div class="field"><label>Note (optional)</label><input id="p-note" placeholder="e.g. 50% deposit"/></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-pay')">Cancel</button>
+      <button class="btn-primary" onclick="savePayment()">Save Payment</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, remove, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:      "AIzaSyCfRcSkvT5yhhTRL2WPjoznoz2wLSmQLEE",
+  authDomain:  "reno-tracker-e1112.firebaseapp.com",
+  databaseURL: "https://reno-tracker-e1112-default-rtdb.firebaseio.com",
+  projectId:   "reno-tracker-e1112",
+  appId:       "1:1086234349303:web:a4918840222bbfca744df2",
+};
+
+const COLORS = ['#f97316','#22c55e','#60a5fa','#a78bfa','#f43f5e','#fb923c','#34d399','#38bdf8','#c084fc','#fbbf24'];
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db  = getDatabase(app);
+const dot = document.getElementById('sync-dot');
+const lbl = document.getElementById('sync-label');
+
+let allProjects = {};
+let allItems    = {};
+let activeProjId   = null;
+let editingProjId  = null;
+let editingItemId  = null;
+let payingItemId   = null;
+let selectedColor  = COLORS[0];
+
+// ── FIREBASE LISTENERS ───────────────────────────────────────────────────────
+onValue(ref(db,'projects'), snap => {
+  allProjects = snap.val() || {};
+  dot.className='sync-dot live'; lbl.textContent='LIVE';
+  render();
+}, () => { dot.className='sync-dot err'; lbl.textContent='ERROR'; });
+
+onValue(ref(db,'items'), snap => {
+  allItems = snap.val() || {};
+  dot.className='sync-dot live'; lbl.textContent='LIVE';
+  render();
+}, () => { dot.className='sync-dot err'; lbl.textContent='ERROR'; });
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function finalAmount(item) {
+  const amt = parseFloat(item.amount)||0;
+  if (item.method==='cash'||item.hstIncluded==='yes') return amt;
+  return Math.round(amt*1.13*100)/100;
+}
+function paidTotal(item) {
+  if (!item.payments) return 0;
+  return Object.values(item.payments).reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+}
+function stats(pid) {
+  const items = Object.values(allItems[pid]||{});
+  const total = items.reduce((s,i)=>s+finalAmount(i),0);
+  const paid  = items.reduce((s,i)=>s+paidTotal(i),0);
+  const out   = Math.max(0,total-paid);
+  const pct   = total>0?Math.min(100,(paid/total)*100):0;
+  const cash  = items.filter(i=>i.method==='cash').reduce((s,i)=>s+finalAmount(i),0);
+  const etrans= items.filter(i=>i.method==='etransfer').reduce((s,i)=>s+finalAmount(i),0);
+  const cheque= items.filter(i=>i.method==='cheque').reduce((s,i)=>s+finalAmount(i),0);
+  const credit= items.filter(i=>i.method==='credit').reduce((s,i)=>s+finalAmount(i),0);
+  const inv   = items.filter(i=>i.invoice==='yes').reduce((s,i)=>s+finalAmount(i),0);
+  const noinv = items.filter(i=>i.invoice!=='yes').reduce((s,i)=>s+finalAmount(i),0);
+  const fp    = items.filter(i=>paidTotal(i)>=finalAmount(i)&&finalAmount(i)>0).length;
+  const part  = items.filter(i=>paidTotal(i)>0&&paidTotal(i)<finalAmount(i)).length;
+  const unp   = items.filter(i=>paidTotal(i)===0).length;
+  return {total,paid,out,pct,cash,etrans,cheque,credit,inv,noinv,count:items.length,fp,part,unp};
+}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+window.switchTab = (name,btn) => {
+  ['dashboard','items','settings'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'':'none');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+};
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function render() { renderDashboard(); renderItemsTab(); renderSettings(); }
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const pids = Object.keys(allProjects);
+  let cT=0,cP=0,cCash=0,cEt=0,cCh=0,cCr=0,cInv=0,cNoInv=0,cFp=0,cPart=0,cUnp=0;
+  pids.forEach(pid=>{
+    const s=stats(pid);
+    cT+=s.total;cP+=s.paid;cCash+=s.cash;cEt+=s.etrans;cCh+=s.cheque;cCr+=s.credit;
+    cInv+=s.inv;cNoInv+=s.noinv;cFp+=s.fp;cPart+=s.part;cUnp+=s.unp;
+  });
+  const cOut=Math.max(0,cT-cP);
+  const cPct=cT>0?Math.min(100,(cP/cT)*100):0;
+  const pct2d = (v,t)=>t>0?((v/t)*100).toFixed(0)+'%':'—';
+
+  document.getElementById('cum-cards').innerHTML = !pids.length
+    ? `<div class="card full" style="color:var(--muted);font-size:.82rem;text-align:center;padding:24px;">No projects yet — go to <strong>⚙️ Settings</strong> to add one.</div>`
+    : `
+    <div class="card full" style="border-left:3px solid var(--orange)">
+      <div class="card-label">Total Budget · All Projects</div>
+      <div class="card-val cv-orange">${fmt(cT)}</div>
+      <div class="prog-track"><div class="prog-fill" style="width:${cPct}%;background:var(--green)"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);font-family:var(--mono);margin-top:5px;">
+        <span>${fmt(cP)} paid</span><span>${cPct.toFixed(0)}% complete</span>
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div class="card-label">Total Paid</div>
+      <div class="card-val cv-green">${fmt(cP)}</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--red)">
+      <div class="card-label">Outstanding</div>
+      <div class="card-val cv-red">${fmt(cOut)}</div>
+    </div>
+    <div class="card full">
+      <div class="card-label">Payment Methods · All Projects</div>
+      <table class="btable">
+        <tr><th>Method</th><th>Amount</th><th>Share</th></tr>
+        <tr><td><span class="badge cash">💵 Cash</span></td><td class="mono">${fmt(cCash)}</td><td class="mono" style="color:var(--muted)">${pct2d(cCash,cT)}</td></tr>
+        <tr><td><span class="badge etransfer">📲 E-Transfer</span></td><td class="mono">${fmt(cEt)}</td><td class="mono" style="color:var(--muted)">${pct2d(cEt,cT)}</td></tr>
+        ${cCh>0?`<tr><td><span class="badge" style="background:#1c2830;color:#67e8f9;">📝 Cheque</span></td><td class="mono">${fmt(cCh)}</td><td class="mono" style="color:var(--muted)">${pct2d(cCh,cT)}</td></tr>`:''}
+        ${cCr>0?`<tr><td><span class="badge" style="background:#2d1b69;color:#c4b5fd;">💳 Credit</span></td><td class="mono">${fmt(cCr)}</td><td class="mono" style="color:var(--muted)">${pct2d(cCr,cT)}</td></tr>`:''}
+      </table>
+    </div>
+    <div class="card full">
+      <div class="card-label">Invoice Status · All Projects</div>
+      <table class="btable">
+        <tr><th>Status</th><th>Amount</th><th>Share</th></tr>
+        <tr><td><span class="badge inv">📄 Invoiced</span></td><td class="mono">${fmt(cInv)}</td><td class="mono" style="color:var(--muted)">${pct2d(cInv,cT)}</td></tr>
+        <tr><td><span class="badge noinv">No Invoice</span></td><td class="mono">${fmt(cNoInv)}</td><td class="mono" style="color:var(--muted)">${pct2d(cNoInv,cT)}</td></tr>
+      </table>
+    </div>
+    <div class="card full">
+      <div class="card-label">Item Status · All Projects</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+        <span class="tag-paid">✓ ${cFp} Fully Paid</span>
+        <span class="tag-partial">◑ ${cPart} Partial</span>
+        <span class="tag-unpaid">○ ${cUnp} Unpaid</span>
+      </div>
+    </div>`;
+
+  // Per-project cards
+  document.getElementById('proj-summaries').innerHTML = !pids.length ? '' : pids.map(pid=>{
+    const p=allProjects[pid];
+    const s=stats(pid);
+    const c=p.color||'#f97316';
+    return `<div class="proj-card" onclick="jumpToProject('${pid}')">
+      <div class="proj-card-top">
+        <div class="proj-card-name"><div class="proj-dot" style="background:${c};width:10px;height:10px;border-radius:50%;flex-shrink:0;"></div>${p.name}</div>
+        <div class="proj-card-total">${fmt(s.total)}</div>
+      </div>
+      ${p.desc?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px;">${p.desc}</div>`:''}
+      <div class="prog-track" style="margin-bottom:6px;"><div class="prog-fill" style="width:${s.pct}%;background:${c}"></div></div>
+      <div class="proj-card-meta">
+        <span style="color:var(--green)">${fmt(s.paid)} paid</span>
+        <span style="color:var(--red)">${fmt(s.out)} left</span>
+        <span>${s.pct.toFixed(0)}%</span>
+        <span style="margin-left:auto">${s.count} items · <span style="color:var(--green)">${s.fp}✓</span> <span style="color:var(--yellow)">${s.part}◑</span> ${s.unp}○</span>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
+        <span class="badge cash">💵 ${fmt(s.cash)}</span>
+        <span class="badge etransfer">📲 ${fmt(s.etrans)}</span>
+        <span class="badge inv">📄 Inv ${fmt(s.inv)}</span>
+        <span class="badge noinv">No Inv ${fmt(s.noinv)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.jumpToProject = function(pid) {
+  activeProjId = pid;
+  document.querySelector('[onclick="switchTab(\'items\',this)"]').click();
+};
+
+// ── ITEMS TAB ────────────────────────────────────────────────────────────────
+function renderItemsTab() {
+  const pids = Object.keys(allProjects);
+  const bar  = document.getElementById('proj-selector-bar');
+
+  if (!pids.length) {
+    bar.innerHTML='';
+    document.getElementById('items-list').innerHTML=`<div class="empty"><div class="icon">📂</div><p>No projects yet.<br>Go to <strong>⚙️ Settings</strong> to create one.</p></div>`;
+    document.getElementById('items-proj-title').textContent='No Projects';
+    return;
+  }
+  if (!activeProjId||!allProjects[activeProjId]) activeProjId=pids[0];
+
+  bar.innerHTML=`<div class="proj-bar">${pids.map(pid=>{
+    const p=allProjects[pid];
+    return `<div class="proj-chip ${pid===activeProjId?'active':''}" onclick="selectProj('${pid}')">
+      <div class="proj-dot" style="background:${p.color||'#888'}"></div>${p.name}</div>`;
+  }).join('')}</div>`;
+
+  document.getElementById('items-proj-title').textContent=allProjects[activeProjId]?.name||'';
+  renderItemsList();
+}
+
+window.selectProj = pid=>{ activeProjId=pid; renderItemsTab(); };
+
+function renderItemsList() {
+  const list  = document.getElementById('items-list');
+  const items = Object.entries(allItems[activeProjId]||{}).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  if (!items.length) {
+    list.innerHTML=`<div class="empty"><div class="icon">🏗️</div><p>No items in this project yet.<br>Tap <strong>＋ Add Item</strong> to start tracking.</p></div>`;
+    return;
+  }
+  list.innerHTML=items.map(([id,item])=>{
+    const total  =finalAmount(item);
+    const paid   =paidTotal(item);
+    const balance=Math.max(0,total-paid);
+    const pct    =total>0?Math.min(100,(paid/total)*100):0;
+    const st     =paid>=total&&total>0?'paid':paid>0?'partial':'unpaid';
+    const stTag  =st==='paid'?'<span class="tag-paid">✓ PAID</span>':st==='partial'?'<span class="tag-partial">◑ PARTIAL</span>':'<span class="tag-unpaid">○ UNPAID</span>';
+    const hstNote=item.method==='cash'?'<span class="badge cash">Cash · No HST</span>':item.hstIncluded==='no'?`<span class="badge" style="background:#1b2d1b;color:#86efac;">+13% HST added</span>`:'';
+    const fc     =st==='paid'?'var(--green)':st==='partial'?'var(--yellow)':'var(--faint)';
+    const payLog =item.payments&&Object.keys(item.payments).length
+      ?`<div class="paid-log"><div class="paid-log-title">Payment History</div>${Object.entries(item.payments).map(([pid2,p])=>`
+        <div class="paid-row">
+          <span>${p.date||'—'}</span>
+          <span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;">${p.note||''}</span>
+          <span style="color:var(--muted);font-size:.64rem;">${p.method}</span>
+          <span style="color:var(--green)">${fmt(p.amount)}</span>
+          <button class="del-pay" onclick="deletePayment('${id}','${pid2}')">✕</button>
+        </div>`).join('')}</div>`:'';
+    return `<div class="item-card ${st}">
+      <div class="item-top"><div class="item-name">${item.name}</div><div class="item-total">${fmt(total)}</div></div>
+      <div class="item-meta">
+        ${stTag}
+        <span class="badge" style="background:var(--surface2);color:var(--muted);">${item.category||'Other'}</span>
+        ${item.invoice==='yes'?'<span class="badge inv">📄 Invoiced</span>':'<span class="badge noinv">No Invoice</span>'}
+        ${item.method==='cash'?'<span class="badge cash">💵 Cash</span>':item.method==='etransfer'?'<span class="badge etransfer">📲 E-Transfer</span>':`<span class="badge">${item.method}</span>`}
+        ${hstNote}
+      </div>
+      ${item.notes?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;">${item.notes}</div>`:''}
+      <div class="item-prog">
+        <div class="item-prog-label"><span>Paid: ${fmt(paid)}</span><span>Balance: ${fmt(balance)}</span></div>
+        <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${fc}"></div></div>
+      </div>
+      ${payLog}
+      <div class="item-actions">
+        ${st!=='paid'?`<button class="btn-sm btn-pay" onclick="openPayModal('${id}')">+ Pay</button>`:''}
+        <button class="btn-sm btn-edit" onclick="openAddItemModal('${id}')">Edit</button>
+        <button class="btn-sm btn-del" onclick="deleteItem('${id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+function renderSettings() {
+  const pids=Object.keys(allProjects);
+  const el=document.getElementById('settings-proj-list');
+  if (!pids.length) {
+    el.innerHTML=`<div class="empty" style="padding:20px 0;"><div class="icon">📂</div><p>No projects yet.</p></div>`;
+    return;
+  }
+  el.innerHTML=pids.map(pid=>{
+    const p=allProjects[pid];
+    const s=stats(pid);
+    return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${p.color||'#888'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <div style="font-weight:600;">${p.name}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-sm btn-edit" onclick="openEditProjModal('${pid}')">Edit</button>
+          <button class="btn-sm btn-del" style="margin-left:0" onclick="deleteProject('${pid}')">Delete</button>
+        </div>
+      </div>
+      ${p.desc?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px;">${p.desc}</div>`:''}
+      <div style="font-size:.72rem;font-family:var(--mono);color:var(--muted);">${s.count} items · ${fmt(s.total)} total · <span style="color:var(--red)">${fmt(s.out)} outstanding</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── PROJECT MODAL ─────────────────────────────────────────────────────────────
+function buildSwatches(sel) {
+  document.getElementById('color-swatches').innerHTML=COLORS.map(c=>
+    `<div class="swatch ${c===sel?'sel':''}" style="background:${c}" onclick="pickColor('${c}')"></div>`
+  ).join('');
+}
+window.pickColor=c=>{ selectedColor=c; document.getElementById('pf-color').value=c; buildSwatches(c); };
+
+window.openAddProjModal=()=>{
+  editingProjId=null;
+  document.getElementById('modal-proj-title').textContent='New Project';
+  document.getElementById('pf-name').value='';
+  document.getElementById('pf-desc').value='';
+  selectedColor=COLORS[Object.keys(allProjects).length%COLORS.length];
+  document.getElementById('pf-color').value=selectedColor;
+  buildSwatches(selectedColor);
+  document.getElementById('modal-proj').classList.add('open');
+};
+window.openEditProjModal=pid=>{
+  editingProjId=pid;
+  const p=allProjects[pid];
+  document.getElementById('modal-proj-title').textContent='Edit Project';
+  document.getElementById('pf-name').value=p.name||'';
+  document.getElementById('pf-desc').value=p.desc||'';
+  selectedColor=p.color||COLORS[0];
+  document.getElementById('pf-color').value=selectedColor;
+  buildSwatches(selectedColor);
+  document.getElementById('modal-proj').classList.add('open');
+};
+window.saveProject=()=>{
+  const name=document.getElementById('pf-name').value.trim();
+  if (!name){showToast('Enter a project name');return;}
+  const payload={name,desc:document.getElementById('pf-desc').value.trim(),color:selectedColor};
+  editingProjId?update(ref(db,'projects/'+editingProjId),payload):push(ref(db,'projects'),payload);
+  closeModal('modal-proj');
+  showToast(editingProjId?'Project updated':'Project created');
+  editingProjId=null;
+};
+window.deleteProject=pid=>{
+  const cnt=Object.keys(allItems[pid]||{}).length;
+  if (!confirm(`Delete "${allProjects[pid]?.name}"?${cnt>0?` This removes ${cnt} item(s) too.`:''} Cannot be undone.`)) return;
+  remove(ref(db,'projects/'+pid));
+  remove(ref(db,'items/'+pid));
+  if (activeProjId===pid) activeProjId=null;
+  showToast('Project deleted');
+};
+
+// ── ITEM MODAL ────────────────────────────────────────────────────────────────
+window.openAddItemModal=id=>{
+  if (!activeProjId){showToast('Select a project first');return;}
+  editingItemId=id||null;
+  document.getElementById('modal-item-title').textContent=id?'Edit Item':'Add Item';
+  if (id&&allItems[activeProjId]?.[id]) {
+    const item=allItems[activeProjId][id];
+    document.getElementById('f-name').value=item.name||'';
+    document.getElementById('f-notes').value=item.notes||'';
+    document.getElementById('f-amount').value=item.amount||'';
+    document.getElementById('f-hst').value=item.hstIncluded||'yes';
+    document.getElementById('f-invoice').value=item.invoice||'no';
+    document.getElementById('f-method').value=item.method||'etransfer';
+    document.getElementById('f-cat').value=item.category||'Other';
+  } else {
+    ['f-name','f-notes','f-amount'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('f-hst').value='yes';
+    document.getElementById('f-invoice').value='no';
+    document.getElementById('f-method').value='etransfer';
+  }
+  calcHst();
+  document.getElementById('modal-item').classList.add('open');
+};
+window.saveItem=()=>{
+  const name=document.getElementById('f-name').value.trim();
+  const amount=parseFloat(document.getElementById('f-amount').value);
+  if (!name){showToast('Enter a description');return;}
+  if (!amount){showToast('Enter an amount');return;}
+  const existing=editingItemId?allItems[activeProjId]?.[editingItemId]:null;
+  const payload={
+    name,amount,
+    notes:document.getElementById('f-notes').value.trim(),
+    hstIncluded:document.getElementById('f-hst').value,
+    invoice:document.getElementById('f-invoice').value,
+    method:document.getElementById('f-method').value,
+    category:document.getElementById('f-cat').value,
+    createdAt:existing?.createdAt||Date.now(),
+    payments:existing?.payments||{},
+  };
+  editingItemId
+    ?update(ref(db,`items/${activeProjId}/${editingItemId}`),payload)
+    :push(ref(db,`items/${activeProjId}`),payload);
+  closeModal('modal-item');
+  showToast(editingItemId?'Item updated':'Item added');
+  editingItemId=null;
+};
+window.deleteItem=id=>{
+  if (!confirm('Delete this item?')) return;
+  remove(ref(db,`items/${activeProjId}/${id}`));
+  showToast('Item deleted');
+};
+
+// ── PAYMENT MODAL ─────────────────────────────────────────────────────────────
+window.openPayModal=id=>{
+  payingItemId=id;
+  const item=allItems[activeProjId]?.[id];
+  if (!item) return;
+  const rem=finalAmount(item)-paidTotal(item);
+  document.getElementById('pay-item-label').innerHTML=`<strong>${item.name}</strong><br>Total: ${fmt(finalAmount(item))} · Remaining: <span style="color:var(--orange)">${fmt(Math.max(0,rem))}</span>`;
+  document.getElementById('p-amount').value=Math.max(0,rem).toFixed(2);
+  document.getElementById('p-method').value=item.method||'cash';
+  document.getElementById('p-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('p-note').value='';
+  document.getElementById('modal-pay').classList.add('open');
+};
+window.savePayment=()=>{
+  const amt=parseFloat(document.getElementById('p-amount').value);
+  if (!amt||amt<=0){showToast('Enter a valid amount');return;}
+  push(ref(db,`items/${activeProjId}/${payingItemId}/payments`),{
+    amount:amt,
+    method:document.getElementById('p-method').value,
+    date:document.getElementById('p-date').value,
+    note:document.getElementById('p-note').value.trim(),
+  });
+  closeModal('modal-pay');
+  showToast(`${fmt(amt)} recorded`);
+};
+window.deletePayment=(itemId,payId)=>{
+  if (!confirm('Remove this payment?')) return;
+  remove(ref(db,`items/${activeProjId}/${itemId}/payments/${payId}`));
+  showToast('Payment removed');
+};
+
+// ── HST CALC ─────────────────────────────────────────────────────────────────
+window.calcHst=()=>{
+  const amt=parseFloat(document.getElementById('f-amount').value)||0;
+  const hst=document.getElementById('f-hst').value;
+  const hint=document.getElementById('hst-hint');
+  if (!amt){hint.textContent='–';return;}
+  if (hst==='no') hint.textContent=`+13% HST = ${fmt(amt*1.13)} total`;
+  else { const pre=amt/1.13; hint.textContent=`Pre-tax: ${fmt(pre)} · HST: ${fmt(amt-pre)}`; }
+};
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+window.closeModal=id=>document.getElementById(id).classList.remove('open');
+
+let toastTimer;
+window.showToast=msg=>{
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+};
+
+document.querySelectorAll('.modal-overlay').forEach(ov=>
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('open'); })
+);
+</script>
+</body>
+</html>
