@@ -331,10 +331,10 @@ const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFrac
 
 function isArchived(project) {
   if (!project) return false;
-  if (project.archived !== undefined && project.archived !== null) return project.archived === true || String(project.archived).trim().toLowerCase() === 'true';
-  if (project.isArchived !== undefined && project.isArchived !== null) return project.isArchived === true || String(project.isArchived).trim().toLowerCase() === 'true';
-  const status = String(project.status ?? project.state ?? '').trim().toLowerCase();
-  return ['archived','complete','completed'].includes(status);
+  const values = [project.archived, project.isArchived, project.status, project.state, project.active]
+    .map(value=>String(value ?? '').trim().toLowerCase());
+  return values.some(value=>['true','1','yes','archived','complete','completed','false'].includes(value)) &&
+    (values[0]==='true' || values[1]==='true' || ['archived','complete','completed'].includes(values[2]) || ['archived','complete','completed'].includes(values[3]) || values[4]==='false');
 }
 
 function finalAmount(item) {
