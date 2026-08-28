@@ -287,7 +287,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, remove, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, remove, onValue, update, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const FIREBASE_CONFIG = {
@@ -621,8 +621,11 @@ window.archiveProject=async pid=>{
   const project=allProjects[pid];
   if (!project||!confirm(`Archive "${project.name}"? It will be hidden from active project views but kept with all of its items.`)) return;
   try {
-    await update(ref(db,'projects/'+pid),{archived:true,status:'archived',archivedAt:Date.now()});
-    if (allProjects[pid]?.archived !== true) throw new Error('Firebase did not confirm the archive');
+    const projectRef=ref(db,'projects/'+pid);
+    await update(projectRef,{archived:true,status:'archived',archivedAt:Date.now()});
+    const archived=(await get(projectRef)).val();
+    if (archived?.archived !== true) throw new Error('Firebase did not confirm the archive');
+    allProjects[pid]=archived; render();
     if (activeProjId===pid) activeProjId=null;
     showToast('Project archived');
   } catch (error) {
@@ -634,8 +637,11 @@ window.restoreProject=async pid=>{
   const project=allProjects[pid];
   if (!project) return;
   try {
-    await update(ref(db,'projects/'+pid),{archived:null,status:null,archivedAt:null});
-    if (allProjects[pid]?.archived === true) throw new Error('Firebase did not confirm the restore');
+    const projectRef=ref(db,'projects/'+pid);
+    await update(projectRef,{archived:null,status:null,archivedAt:null});
+    const restored=(await get(projectRef)).val();
+    if (restored?.archived === true) throw new Error('Firebase did not confirm the restore');
+    allProjects[pid]=restored; render();
     showToast('Project restored');
   } catch (error) {
     console.error('Restore failed',error);
