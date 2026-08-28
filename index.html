@@ -331,9 +331,10 @@ const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFrac
 
 function isArchived(project) {
   if (!project) return false;
-  const values = [project.archived, project.isArchived, project.status, project.state]
-    .map(value=>String(value ?? '').trim().toLowerCase());
-  return values.some(value=>['true','1','yes','archived','complete','completed'].includes(value));
+  if (project.archived !== undefined && project.archived !== null) return project.archived === true || String(project.archived).trim().toLowerCase() === 'true';
+  if (project.isArchived !== undefined && project.isArchived !== null) return project.isArchived === true || String(project.isArchived).trim().toLowerCase() === 'true';
+  const status = String(project.status ?? project.state ?? '').trim().toLowerCase();
+  return ['archived','complete','completed'].includes(status);
 }
 
 function finalAmount(item) {
@@ -623,12 +624,12 @@ window.saveProject=()=>{
 window.archiveProject=pid=>{
   const project=allProjects[pid];
   if (!project||!confirm(`Archive "${project.name}"? It will be hidden from active project views but kept with all of its items.`)) return;
-  update(ref(db,'projects/'+pid),{archived:true,status:'archived',archivedAt:Date.now()});
+  update(ref(db,'projects/'+pid),{archived:true,status:'archived',state:'archived',isArchived:true,archivedAt:Date.now()});
   if (activeProjId===pid) activeProjId=null;
   showToast('Project archived');
 };
 window.restoreProject=pid=>{
-  update(ref(db,'projects/'+pid),{archived:null,status:null,archivedAt:null});
+  update(ref(db,'projects/'+pid),{archived:false,status:null,state:null,isArchived:false,archivedAt:null});
   showToast('Project restored');
 };
 window.deleteProject=pid=>{
