@@ -330,7 +330,9 @@ onValue(ref(db,'items'), snap => {
 const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
 
 function isArchived(project) {
-  return project && (project.archived === true || project.archived === 'true' || project.archived === 1 || project.archived === '1');
+  if (!project) return false;
+  const status = String(project.archived ?? project.status ?? '').trim().toLowerCase();
+  return project.archived === true || status === 'true' || status === '1' || status === 'yes' || status === 'archived';
 }
 
 function finalAmount(item) {
@@ -620,12 +622,12 @@ window.saveProject=()=>{
 window.archiveProject=pid=>{
   const project=allProjects[pid];
   if (!project||!confirm(`Archive "${project.name}"? It will be hidden from active project views but kept with all of its items.`)) return;
-  update(ref(db,'projects/'+pid),{archived:true,archivedAt:Date.now()});
+  update(ref(db,'projects/'+pid),{archived:true,status:'archived',archivedAt:Date.now()});
   if (activeProjId===pid) activeProjId=null;
   showToast('Project archived');
 };
 window.restoreProject=pid=>{
-  update(ref(db,'projects/'+pid),{archived:null,archivedAt:null});
+  update(ref(db,'projects/'+pid),{archived:null,status:null,archivedAt:null});
   showToast('Project restored');
 };
 window.deleteProject=pid=>{
