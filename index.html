@@ -80,6 +80,9 @@
   .btn-pay:hover{background:var(--green);color:#000;}
   .btn-edit{background:var(--surface2);color:var(--text);border-color:var(--faint);}
   .btn-edit:hover{border-color:var(--orange);color:var(--orange);}
+  .btn-archive{background:var(--yellow-dim);color:var(--yellow);border-color:var(--yellow);}
+  .btn-archive:hover{background:var(--yellow);color:#000;}
+  .archived-badge{font-size:.62rem;background:var(--yellow-dim);color:var(--yellow);padding:2px 8px;border-radius:99px;font-weight:600;}
   .btn-del{background:var(--red-dim);color:var(--red);border-color:var(--red);margin-left:auto;}
   .btn-del:hover{background:var(--red);color:#fff;}
 
@@ -182,6 +185,8 @@
       <button class="btn-add" onclick="openAddProjModal()">＋ New Project</button>
     </div>
     <div id="settings-proj-list"></div>
+    <div class="divider" style="margin-top:24px;"><div class="divider-label">Archived Projects</div><div class="divider-line"></div></div>
+    <div id="archived-proj-list"></div>
     <div class="divider" style="margin-top:24px;"><div class="divider-label">App Info</div><div class="divider-line"></div></div>
     <div class="card" style="margin-top:10px;">
       <div class="card-label">HST Rate · Ontario</div>
@@ -363,7 +368,7 @@ function render() { renderDashboard(); renderItemsTab(); renderSettings(); }
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function renderDashboard() {
-  const pids = Object.keys(allProjects);
+  const pids = Object.keys(allProjects).filter(pid=>!allProjects[pid].archived);
   let cT=0,cP=0,cCash=0,cEt=0,cCh=0,cCr=0,cInv=0,cNoInv=0,cFp=0,cPart=0,cUnp=0;
   pids.forEach(pid=>{
     const s=stats(pid);
@@ -455,7 +460,7 @@ window.jumpToProject = function(pid) {
 
 // ── ITEMS TAB ────────────────────────────────────────────────────────────────
 function renderItemsTab() {
-  const pids = Object.keys(allProjects);
+  const pids = Object.keys(allProjects).filter(pid=>!allProjects[pid].archived);
   const bar  = document.getElementById('proj-selector-bar');
 
   if (!pids.length) {
@@ -464,7 +469,7 @@ function renderItemsTab() {
     document.getElementById('items-proj-title').textContent='No Projects';
     return;
   }
-  if (!activeProjId||!allProjects[activeProjId]) activeProjId=pids[0];
+  if (!activeProjId||!allProjects[activeProjId]||allProjects[activeProjId].archived) activeProjId=pids[0];
 
   bar.innerHTML=`<div class="proj-bar">${pids.map(pid=>{
     const p=allProjects[pid];
@@ -529,13 +534,13 @@ function renderItemsList() {
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 function renderSettings() {
-  const pids=Object.keys(allProjects);
+  const pids=Object.keys(allProjects).filter(pid=>!allProjects[pid].archived);
+  const archivedPids=Object.keys(allProjects).filter(pid=>allProjects[pid].archived);
   const el=document.getElementById('settings-proj-list');
-  if (!pids.length) {
-    el.innerHTML=`<div class="empty" style="padding:20px 0;"><div class="icon">📂</div><p>No projects yet.</p></div>`;
-    return;
-  }
-  el.innerHTML=pids.map(pid=>{
+  const archivedEl=document.getElementById('archived-proj-list');
+  el.innerHTML=!pids.length
+    ? `<div class="empty" style="padding:20px 0;"><div class="icon">📂</div><p>No active projects yet.</p></div>`
+    : pids.map(pid=>{
     const p=allProjects[pid];
     const s=stats(pid);
     return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${p.color||'#888'}">
@@ -543,6 +548,7 @@ function renderSettings() {
         <div style="font-weight:600;">${p.name}</div>
         <div style="display:flex;gap:6px;">
           <button class="btn-sm btn-edit" onclick="openEditProjModal('${pid}')">Edit</button>
+          <button class="btn-sm btn-archive" style="margin-left:0" onclick="archiveProject('${pid}')">Archive</button>
           <button class="btn-sm btn-del" style="margin-left:0" onclick="deleteProject('${pid}')">Delete</button>
         </div>
       </div>
@@ -550,6 +556,23 @@ function renderSettings() {
       <div style="font-size:.72rem;font-family:var(--mono);color:var(--muted);">${s.count} items · ${fmt(s.total)} total · <span style="color:var(--red)">${fmt(s.out)} outstanding</span></div>
     </div>`;
   }).join('');
+  archivedEl.innerHTML=!archivedPids.length
+    ? `<div class="empty" style="padding:20px 0;"><div class="icon">🗄️</div><p>Archived projects will appear here.</p></div>`
+    : archivedPids.map(pid=>{
+      const p=allProjects[pid];
+      const s=stats(pid);
+      return `<div class="card" style="margin-bottom:10px;border-left:3px solid var(--yellow);opacity:.85;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-weight:600;">${p.name} <span class="archived-badge">ARCHIVED</span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-sm btn-edit" onclick="restoreProject('${pid}')">Restore</button>
+            <button class="btn-sm btn-del" style="margin-left:0" onclick="deleteProject('${pid}')">Delete</button>
+          </div>
+        </div>
+        ${p.desc?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px;">${p.desc}</div>`:''}
+        <div style="font-size:.72rem;font-family:var(--mono);color:var(--muted);">${s.count} items · ${fmt(s.total)} total · ${fmt(s.out)} outstanding</div>
+      </div>`;
+    }).join('');
 }
 
 // ── PROJECT MODAL ─────────────────────────────────────────────────────────────
@@ -589,6 +612,17 @@ window.saveProject=()=>{
   closeModal('modal-proj');
   showToast(editingProjId?'Project updated':'Project created');
   editingProjId=null;
+};
+window.archiveProject=pid=>{
+  const project=allProjects[pid];
+  if (!project||!confirm(`Archive "${project.name}"? It will be hidden from active project views but kept with all of its items.`)) return;
+  update(ref(db,'projects/'+pid),{archived:true,archivedAt:Date.now()});
+  if (activeProjId===pid) activeProjId=null;
+  showToast('Project archived');
+};
+window.restoreProject=pid=>{
+  update(ref(db,'projects/'+pid),{archived:null,archivedAt:null});
+  showToast('Project restored');
 };
 window.deleteProject=pid=>{
   const cnt=Object.keys(allItems[pid]||{}).length;
