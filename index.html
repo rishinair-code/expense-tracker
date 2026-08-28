@@ -27,6 +27,7 @@
   .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .4s;}
   .sync-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);}
   .sync-dot.err{background:var(--red);}
+  .build-tag{font-family:var(--mono);font-size:.6rem;color:var(--faint);letter-spacing:.5px;}
 
   .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;}
   .tab-btn{flex:1;padding:12px 6px;font-size:.75rem;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:inherit;}
@@ -150,6 +151,7 @@
 <header>
   <div class="logo">RENO<span>TRACK</span></div>
   <div class="sync-pill"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">CONNECTING</span></div>
+  <span class="build-tag">BUILD 2026-08-28B</span>
 </header>
 
 <nav class="tabs">
@@ -289,6 +291,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, remove, onValue, update, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+console.log('RenoTrack build 2026-08-28B');
+
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const FIREBASE_CONFIG = {
   apiKey:      "AIzaSyCfRcSkvT5yhhTRL2WPjoznoz2wLSmQLEE",
@@ -330,7 +334,9 @@ onValue(ref(db,'items'), snap => {
 const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
 
 function isArchived(project) {
-  return project?.archived === true;
+  if (!project) return false;
+  if (project.archived===true||project.archived==='true'||project.archived===1||project.archived==='1') return true;
+  return String(project.status||'').trim().toLowerCase()==='archived';
 }
 
 function finalAmount(item) {
@@ -373,6 +379,8 @@ function render() { renderDashboard(); renderItemsTab(); renderSettings(); }
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function renderDashboard() {
   const pids = Object.keys(allProjects).filter(pid=>!isArchived(allProjects[pid]));
+  const archivedPids=Object.keys(allProjects).filter(pid=>isArchived(allProjects[pid]));
+  let aT=0; archivedPids.forEach(pid=>{aT+=stats(pid).total;});
   let cT=0,cP=0,cCash=0,cEt=0,cCh=0,cCr=0,cInv=0,cNoInv=0,cFp=0,cPart=0,cUnp=0;
   pids.forEach(pid=>{
     const s=stats(pid);
@@ -393,6 +401,7 @@ function renderDashboard() {
       <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);font-family:var(--mono);margin-top:5px;">
         <span>${fmt(cP)} paid</span><span>${cPct.toFixed(0)}% complete</span>
       </div>
+      ${archivedPids.length?`<div style="font-size:.66rem;color:var(--yellow);font-family:var(--mono);margin-top:4px;">🗄️ ${archivedPids.length} archived project${archivedPids.length>1?'s':''} · ${fmt(aT)} excluded</div>`:''}
     </div>
     <div class="card" style="border-left:3px solid var(--green)">
       <div class="card-label">Total Paid</div>
@@ -638,9 +647,9 @@ window.restoreProject=async pid=>{
   if (!project) return;
   try {
     const projectRef=ref(db,'projects/'+pid);
-    await update(projectRef,{archived:null,status:null,archivedAt:null});
+    await update(projectRef,{archived:null,isArchived:null,state:null,status:null,archivedAt:null});
     const restored=(await get(projectRef)).val();
-    if (restored?.archived === true) throw new Error('Firebase did not confirm the restore');
+    if (isArchived(restored)) throw new Error('Firebase did not confirm the restore');
     allProjects[pid]=restored; render();
     showToast('Project restored');
   } catch (error) {
