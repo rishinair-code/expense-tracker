@@ -331,8 +331,9 @@ const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFrac
 
 function isArchived(project) {
   if (!project) return false;
-  const status = String(project.archived ?? project.status ?? '').trim().toLowerCase();
-  return project.archived === true || status === 'true' || status === '1' || status === 'yes' || status === 'archived';
+  const values = [project.archived, project.isArchived, project.status, project.state]
+    .map(value=>String(value ?? '').trim().toLowerCase());
+  return values.some(value=>['true','1','yes','archived','complete','completed'].includes(value));
 }
 
 function finalAmount(item) {
