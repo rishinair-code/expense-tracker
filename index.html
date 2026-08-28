@@ -368,7 +368,7 @@ function render() { renderDashboard(); renderItemsTab(); renderSettings(); }
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function renderDashboard() {
-  const pids = Object.keys(allProjects).filter(pid=>!allProjects[pid].archived);
+  const pids = Object.keys(allProjects).filter(pid=>allProjects[pid] && allProjects[pid].archived !== true);
   let cT=0,cP=0,cCash=0,cEt=0,cCh=0,cCr=0,cInv=0,cNoInv=0,cFp=0,cPart=0,cUnp=0;
   pids.forEach(pid=>{
     const s=stats(pid);
@@ -460,7 +460,7 @@ window.jumpToProject = function(pid) {
 
 // ── ITEMS TAB ────────────────────────────────────────────────────────────────
 function renderItemsTab() {
-  const pids = Object.keys(allProjects).filter(pid=>!allProjects[pid].archived);
+  const pids = Object.keys(allProjects).filter(pid=>allProjects[pid] && allProjects[pid].archived !== true);
   const bar  = document.getElementById('proj-selector-bar');
 
   if (!pids.length) {
