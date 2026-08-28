@@ -329,6 +329,10 @@ onValue(ref(db,'items'), snap => {
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
 
+function isArchived(project) {
+  return project && (project.archived === true || project.archived === 'true' || project.archived === 1 || project.archived === '1');
+}
+
 function finalAmount(item) {
   const amt = parseFloat(item.amount)||0;
   if (item.method==='cash'||item.hstIncluded==='yes') return amt;
@@ -368,7 +372,7 @@ function render() { renderDashboard(); renderItemsTab(); renderSettings(); }
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function renderDashboard() {
-  const pids = Object.keys(allProjects).filter(pid=>allProjects[pid] && allProjects[pid].archived !== true);
+  const pids = Object.keys(allProjects).filter(pid=>!isArchived(allProjects[pid]));
   let cT=0,cP=0,cCash=0,cEt=0,cCh=0,cCr=0,cInv=0,cNoInv=0,cFp=0,cPart=0,cUnp=0;
   pids.forEach(pid=>{
     const s=stats(pid);
@@ -460,7 +464,7 @@ window.jumpToProject = function(pid) {
 
 // ── ITEMS TAB ────────────────────────────────────────────────────────────────
 function renderItemsTab() {
-  const pids = Object.keys(allProjects).filter(pid=>allProjects[pid] && allProjects[pid].archived !== true);
+  const pids = Object.keys(allProjects).filter(pid=>!isArchived(allProjects[pid]));
   const bar  = document.getElementById('proj-selector-bar');
 
   if (!pids.length) {
@@ -469,7 +473,7 @@ function renderItemsTab() {
     document.getElementById('items-proj-title').textContent='No Projects';
     return;
   }
-  if (!activeProjId||!allProjects[activeProjId]||allProjects[activeProjId].archived) activeProjId=pids[0];
+  if (!activeProjId||!allProjects[activeProjId]||isArchived(allProjects[activeProjId])) activeProjId=pids[0];
 
   bar.innerHTML=`<div class="proj-bar">${pids.map(pid=>{
     const p=allProjects[pid];
@@ -534,8 +538,8 @@ function renderItemsList() {
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 function renderSettings() {
-  const pids=Object.keys(allProjects).filter(pid=>!allProjects[pid].archived);
-  const archivedPids=Object.keys(allProjects).filter(pid=>allProjects[pid].archived);
+  const pids=Object.keys(allProjects).filter(pid=>!isArchived(allProjects[pid]));
+  const archivedPids=Object.keys(allProjects).filter(pid=>isArchived(allProjects[pid]));
   const el=document.getElementById('settings-proj-list');
   const archivedEl=document.getElementById('archived-proj-list');
   el.innerHTML=!pids.length
