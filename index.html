@@ -136,6 +136,16 @@
   .btable tr:last-child td{border-bottom:none;}
   .mono{font-family:var(--mono);}
 
+  .hint{font-size:.72rem;color:var(--muted);line-height:1.5;}
+  .stat-sub{font-size:.66rem;font-family:var(--mono);color:var(--muted);margin-top:5px;}
+  .paybar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--border);margin-top:8px;}
+  .paybar .seg{height:100%;}
+  .payrow{display:flex;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem;}
+  .payrow:last-child{border-bottom:none;}
+  .payrow .lbl{flex:1;}
+  .payrow .amt{font-family:var(--mono);font-weight:600;margin-right:14px;}
+  .payrow .sh{font-family:var(--mono);color:var(--muted);font-size:.7rem;width:48px;text-align:right;}
+
   .empty{text-align:center;padding:40px 20px;color:var(--muted);}
   .empty .icon{font-size:2rem;margin-bottom:10px;}
   .empty p{font-size:.82rem;line-height:1.6;}
@@ -151,43 +161,46 @@
 <header>
   <div class="logo">RENO<span>TRACK</span></div>
   <div class="sync-pill"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">CONNECTING</span></div>
-  <span class="build-tag">BUILD 2026-08-28B</span>
+  <span class="build-tag">BUILD 2026-08-28C</span>
 </header>
 
 <nav class="tabs">
   <button class="tab-btn active" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
-  <button class="tab-btn" onclick="switchTab('items',this)">📋 Line Items</button>
-  <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ Settings</button>
+  <button class="tab-btn" onclick="switchTab('items',this)">🏗️ Projects</button>
+  <button class="tab-btn" onclick="switchTab('settings',this)">🗂️ Manage</button>
 </nav>
 
 <main>
 
   <!-- DASHBOARD -->
   <div id="tab-dashboard">
-    <div class="divider"><div class="divider-label">All Projects · Cumulative</div><div class="divider-line"></div></div>
+    <div class="divider"><div class="divider-label">Overview · Active Projects</div><div class="divider-line"></div></div>
     <div class="cards" id="cum-cards"><div class="card full" style="color:var(--muted);font-size:.8rem;">Loading…</div></div>
-    <div class="divider"><div class="divider-label">Per Project Breakdown</div><div class="divider-line"></div></div>
+    <div class="divider"><div class="divider-label">Project Breakdown</div><div class="divider-line"></div></div>
     <div id="proj-summaries"></div>
   </div>
 
-  <!-- LINE ITEMS -->
+  <!-- PROJECTS (WORK ITEMS) -->
   <div id="tab-items" style="display:none">
     <div id="proj-selector-bar" style="margin:0 -16px;margin-bottom:14px;"></div>
     <div class="section-hdr">
       <div class="section-title" id="items-proj-title">Select a Project</div>
-      <button class="btn-add" onclick="openAddItemModal()">＋ Add Item</button>
+      <button class="btn-add" onclick="openAddItemModal()">＋ Add Work Item</button>
     </div>
+    <div id="items-proj-summary" class="hint" style="margin:-4px 0 12px;"></div>
     <div id="items-list"></div>
   </div>
 
-  <!-- SETTINGS -->
+  <!-- MANAGE -->
   <div id="tab-settings" style="display:none">
     <div class="section-hdr">
       <div class="section-title">Projects</div>
       <button class="btn-add" onclick="openAddProjModal()">＋ New Project</button>
     </div>
+    <div class="hint" style="margin:-4px 0 12px;">Archive a completed project to remove it from dashboard totals — nothing is deleted, and it can be restored anytime below.</div>
     <div id="settings-proj-list"></div>
     <div class="divider" style="margin-top:24px;"><div class="divider-label">Archived Projects</div><div class="divider-line"></div></div>
+    <div class="hint" style="margin:-4px 0 12px;">Archived projects keep all work items and payment history, and are excluded from dashboard totals.</div>
     <div id="archived-proj-list"></div>
     <div class="divider" style="margin-top:24px;"><div class="divider-label">App Info</div><div class="divider-line"></div></div>
     <div class="card" style="margin-top:10px;">
@@ -216,8 +229,8 @@
 <!-- ITEM MODAL -->
 <div class="modal-overlay" id="modal-item">
   <div class="modal">
-    <div class="modal-title" id="modal-item-title">Add Item</div>
-    <div class="field"><label>Description / Particulars</label><input id="f-name" placeholder="e.g. Drywall & Insulation"/></div>
+    <div class="modal-title" id="modal-item-title">Add Work Item</div>
+    <div class="field"><label>Work Item Name</label><input id="f-name" placeholder="e.g. Drywall & Insulation"/></div>
     <div class="field"><label>Notes (optional)</label><textarea id="f-notes" rows="2" placeholder="Contractor, scope detail…"></textarea></div>
     <div class="field-row">
       <div class="field">
@@ -259,7 +272,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-item')">Cancel</button>
-      <button class="btn-primary" onclick="saveItem()">Save Item</button>
+      <button class="btn-primary" onclick="saveItem()">Save Work Item</button>
     </div>
   </div>
 </div>
@@ -291,7 +304,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, remove, onValue, update, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-console.log('RenoTrack build 2026-08-28B');
+console.log('RenoTrack build 2026-08-28C');
 
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const FIREBASE_CONFIG = {
@@ -390,52 +403,53 @@ function renderDashboard() {
   const cOut=Math.max(0,cT-cP);
   const cPct=cT>0?Math.min(100,(cP/cT)*100):0;
   const pct2d = (v,t)=>t>0?((v/t)*100).toFixed(0)+'%':'—';
+  const pw    = (v,t)=>t>0?Math.min(100,(v/t)*100).toFixed(1)+'%':'0%';
 
   document.getElementById('cum-cards').innerHTML = !pids.length
-    ? `<div class="card full" style="color:var(--muted);font-size:.82rem;text-align:center;padding:24px;">No projects yet — go to <strong>⚙️ Settings</strong> to add one.</div>`
+    ? `<div class="card full" style="color:var(--muted);font-size:.82rem;text-align:center;padding:24px;">No active projects — go to <strong>🗂️ Manage</strong> to add one.</div>`
     : `
     <div class="card full" style="border-left:3px solid var(--orange)">
-      <div class="card-label">Total Budget · All Projects</div>
+      <div class="card-label">Project Value · Active Projects</div>
       <div class="card-val cv-orange">${fmt(cT)}</div>
       <div class="prog-track"><div class="prog-fill" style="width:${cPct}%;background:var(--green)"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);font-family:var(--mono);margin-top:5px;">
-        <span>${fmt(cP)} paid</span><span>${cPct.toFixed(0)}% complete</span>
+        <span>${fmt(cP)} paid</span><span>${cPct.toFixed(0)}% paid</span>
       </div>
-      ${archivedPids.length?`<div style="font-size:.66rem;color:var(--yellow);font-family:var(--mono);margin-top:4px;">🗄️ ${archivedPids.length} archived project${archivedPids.length>1?'s':''} · ${fmt(aT)} excluded</div>`:''}
+      ${archivedPids.length?`<div class="hint" style="margin-top:6px;">🗄️ ${archivedPids.length} archived project${archivedPids.length>1?'s':''} · ${fmt(aT)} excluded from totals</div>`:''}
     </div>
     <div class="card" style="border-left:3px solid var(--green)">
-      <div class="card-label">Total Paid</div>
+      <div class="card-label">Paid</div>
       <div class="card-val cv-green">${fmt(cP)}</div>
+      <div class="stat-sub">${cPct.toFixed(0)}% of project value</div>
     </div>
     <div class="card" style="border-left:3px solid var(--red)">
-      <div class="card-label">Outstanding</div>
+      <div class="card-label">Pending</div>
       <div class="card-val cv-red">${fmt(cOut)}</div>
+      <div class="stat-sub">${(100-cPct).toFixed(0)}% remaining to collect</div>
     </div>
     <div class="card full">
-      <div class="card-label">Payment Methods · All Projects</div>
-      <table class="btable">
-        <tr><th>Method</th><th>Amount</th><th>Share</th></tr>
-        <tr><td><span class="badge cash">💵 Cash</span></td><td class="mono">${fmt(cCash)}</td><td class="mono" style="color:var(--muted)">${pct2d(cCash,cT)}</td></tr>
-        <tr><td><span class="badge etransfer">📲 E-Transfer</span></td><td class="mono">${fmt(cEt)}</td><td class="mono" style="color:var(--muted)">${pct2d(cEt,cT)}</td></tr>
-        ${cCh>0?`<tr><td><span class="badge" style="background:#1c2830;color:#67e8f9;">📝 Cheque</span></td><td class="mono">${fmt(cCh)}</td><td class="mono" style="color:var(--muted)">${pct2d(cCh,cT)}</td></tr>`:''}
-        ${cCr>0?`<tr><td><span class="badge" style="background:#2d1b69;color:#c4b5fd;">💳 Credit</span></td><td class="mono">${fmt(cCr)}</td><td class="mono" style="color:var(--muted)">${pct2d(cCr,cT)}</td></tr>`:''}
-      </table>
+      <div class="card-label">Cash vs E-Transfer · Active Projects</div>
+      <div class="paybar">
+        <div class="seg" style="width:${pw(cCash,cT)};background:var(--yellow)"></div>
+        <div class="seg" style="width:${pw(cEt,cT)};background:var(--blue)"></div>
+        ${cCh>0?`<div class="seg" style="width:${pw(cCh,cT)};background:#67e8f9"></div>`:''}
+        ${cCr>0?`<div class="seg" style="width:${pw(cCr,cT)};background:#c4b5fd"></div>`:''}
+      </div>
+      <div style="margin-top:4px;">
+        <div class="payrow"><span class="lbl"><span class="badge cash">💵 Cash</span></span><span class="amt">${fmt(cCash)}</span><span class="sh">${pct2d(cCash,cT)}</span></div>
+        <div class="payrow"><span class="lbl"><span class="badge etransfer">📲 E-Transfer</span></span><span class="amt">${fmt(cEt)}</span><span class="sh">${pct2d(cEt,cT)}</span></div>
+        ${cCh>0?`<div class="payrow"><span class="lbl"><span class="badge" style="background:#1c2830;color:#67e8f9;">📝 Cheque</span></span><span class="amt">${fmt(cCh)}</span><span class="sh">${pct2d(cCh,cT)}</span></div>`:''}
+        ${cCr>0?`<div class="payrow"><span class="lbl"><span class="badge" style="background:#2d1b69;color:#c4b5fd;">💳 Credit</span></span><span class="amt">${fmt(cCr)}</span><span class="sh">${pct2d(cCr,cT)}</span></div>`:''}
+      </div>
     </div>
     <div class="card full">
-      <div class="card-label">Invoice Status · All Projects</div>
-      <table class="btable">
-        <tr><th>Status</th><th>Amount</th><th>Share</th></tr>
-        <tr><td><span class="badge inv">📄 Invoiced</span></td><td class="mono">${fmt(cInv)}</td><td class="mono" style="color:var(--muted)">${pct2d(cInv,cT)}</td></tr>
-        <tr><td><span class="badge noinv">No Invoice</span></td><td class="mono">${fmt(cNoInv)}</td><td class="mono" style="color:var(--muted)">${pct2d(cNoInv,cT)}</td></tr>
-      </table>
-    </div>
-    <div class="card full">
-      <div class="card-label">Item Status · All Projects</div>
+      <div class="card-label">Work Item Status · Active Projects</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
         <span class="tag-paid">✓ ${cFp} Fully Paid</span>
         <span class="tag-partial">◑ ${cPart} Partial</span>
         <span class="tag-unpaid">○ ${cUnp} Unpaid</span>
       </div>
+      <div class="stat-sub">📄 ${fmt(cInv)} invoiced · ${fmt(cNoInv)} not invoiced</div>
     </div>`;
 
   // Per-project cards
@@ -452,16 +466,18 @@ function renderDashboard() {
       <div class="prog-track" style="margin-bottom:6px;"><div class="prog-fill" style="width:${s.pct}%;background:${c}"></div></div>
       <div class="proj-card-meta">
         <span style="color:var(--green)">${fmt(s.paid)} paid</span>
-        <span style="color:var(--red)">${fmt(s.out)} left</span>
-        <span>${s.pct.toFixed(0)}%</span>
-        <span style="margin-left:auto">${s.count} items · <span style="color:var(--green)">${s.fp}✓</span> <span style="color:var(--yellow)">${s.part}◑</span> ${s.unp}○</span>
+        <span style="color:var(--red)">${fmt(s.out)} pending</span>
+        <span>${s.pct.toFixed(0)}% paid</span>
+        <span style="margin-left:auto">${s.count} work item${s.count===1?'':'s'}</span>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
         <span class="badge cash">💵 ${fmt(s.cash)}</span>
         <span class="badge etransfer">📲 ${fmt(s.etrans)}</span>
+        ${s.cheque>0?`<span class="badge" style="background:#1c2830;color:#67e8f9;">📝 ${fmt(s.cheque)}</span>`:''}
+        ${s.credit>0?`<span class="badge" style="background:#2d1b69;color:#c4b5fd;">💳 ${fmt(s.credit)}</span>`:''}
         <span class="badge inv">📄 Inv ${fmt(s.inv)}</span>
-        <span class="badge noinv">No Inv ${fmt(s.noinv)}</span>
       </div>
+      <div class="stat-sub" style="margin-top:8px;">Tap to view work items →</div>
     </div>`;
   }).join('');
 }
@@ -478,7 +494,8 @@ function renderItemsTab() {
 
   if (!pids.length) {
     bar.innerHTML='';
-    document.getElementById('items-list').innerHTML=`<div class="empty"><div class="icon">📂</div><p>No projects yet.<br>Go to <strong>⚙️ Settings</strong> to create one.</p></div>`;
+    document.getElementById('items-list').innerHTML=`<div class="empty"><div class="icon">📂</div><p>No active projects.<br>Go to <strong>🗂️ Manage</strong> to create one.</p></div>`;
+    document.getElementById('items-proj-summary').textContent='';
     document.getElementById('items-proj-title').textContent='No Projects';
     return;
   }
@@ -491,6 +508,8 @@ function renderItemsTab() {
   }).join('')}</div>`;
 
   document.getElementById('items-proj-title').textContent=allProjects[activeProjId]?.name||'';
+  const ps=stats(activeProjId);
+  document.getElementById('items-proj-summary').textContent=`${ps.count} work item${ps.count===1?'':'s'} · ${fmt(ps.total)} value · ${fmt(ps.paid)} paid · ${fmt(ps.out)} pending`;
   renderItemsList();
 }
 
@@ -500,7 +519,7 @@ function renderItemsList() {
   const list  = document.getElementById('items-list');
   const items = Object.entries(allItems[activeProjId]||{}).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
   if (!items.length) {
-    list.innerHTML=`<div class="empty"><div class="icon">🏗️</div><p>No items in this project yet.<br>Tap <strong>＋ Add Item</strong> to start tracking.</p></div>`;
+    list.innerHTML=`<div class="empty"><div class="icon">🏗️</div><p>No work items in this project yet.<br>Tap <strong>＋ Add Work Item</strong> to start tracking costs.</p></div>`;
     return;
   }
   list.innerHTML=items.map(([id,item])=>{
@@ -532,7 +551,7 @@ function renderItemsList() {
       </div>
       ${item.notes?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;">${item.notes}</div>`:''}
       <div class="item-prog">
-        <div class="item-prog-label"><span>Paid: ${fmt(paid)}</span><span>Balance: ${fmt(balance)}</span></div>
+        <div class="item-prog-label"><span>Paid: ${fmt(paid)}</span><span>Pending: ${fmt(balance)}</span></div>
         <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${fc}"></div></div>
       </div>
       ${payLog}
@@ -566,7 +585,7 @@ function renderSettings() {
         </div>
       </div>
       ${p.desc?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px;">${p.desc}</div>`:''}
-      <div style="font-size:.72rem;font-family:var(--mono);color:var(--muted);">${s.count} items · ${fmt(s.total)} total · <span style="color:var(--red)">${fmt(s.out)} outstanding</span></div>
+      <div class="stat-sub">${s.count} work item${s.count===1?'':'s'} · ${fmt(s.total)} value · <span style="color:var(--green)">${fmt(s.paid)} paid</span> · <span style="color:var(--red)">${fmt(s.out)} pending</span></div>
     </div>`;
   }).join('');
   archivedEl.innerHTML=!archivedPids.length
@@ -583,7 +602,7 @@ function renderSettings() {
           </div>
         </div>
         ${p.desc?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px;">${p.desc}</div>`:''}
-        <div style="font-size:.72rem;font-family:var(--mono);color:var(--muted);">${s.count} items · ${fmt(s.total)} total · ${fmt(s.out)} outstanding</div>
+        <div class="stat-sub">${s.count} work item${s.count===1?'':'s'} · ${fmt(s.total)} value · ${fmt(s.out)} pending</div>
       </div>`;
     }).join('');
 }
@@ -659,7 +678,7 @@ window.restoreProject=async pid=>{
 };
 window.deleteProject=pid=>{
   const cnt=Object.keys(allItems[pid]||{}).length;
-  if (!confirm(`Delete "${allProjects[pid]?.name}"?${cnt>0?` This removes ${cnt} item(s) too.`:''} Cannot be undone.`)) return;
+  if (!confirm(`Delete "${allProjects[pid]?.name}"?${cnt>0?` This also deletes its ${cnt} work item${cnt===1?'':'s'} and all payment history.`:''} This cannot be undone.`)) return;
   remove(ref(db,'projects/'+pid));
   remove(ref(db,'items/'+pid));
   if (activeProjId===pid) activeProjId=null;
@@ -670,7 +689,7 @@ window.deleteProject=pid=>{
 window.openAddItemModal=id=>{
   if (!activeProjId){showToast('Select a project first');return;}
   editingItemId=id||null;
-  document.getElementById('modal-item-title').textContent=id?'Edit Item':'Add Item';
+  document.getElementById('modal-item-title').textContent=id?'Edit Work Item':'Add Work Item';
   if (id&&allItems[activeProjId]?.[id]) {
     const item=allItems[activeProjId][id];
     document.getElementById('f-name').value=item.name||'';
@@ -692,7 +711,7 @@ window.openAddItemModal=id=>{
 window.saveItem=()=>{
   const name=document.getElementById('f-name').value.trim();
   const amount=parseFloat(document.getElementById('f-amount').value);
-  if (!name){showToast('Enter a description');return;}
+  if (!name){showToast('Enter a work item name');return;}
   if (!amount){showToast('Enter an amount');return;}
   const existing=editingItemId?allItems[activeProjId]?.[editingItemId]:null;
   const payload={
@@ -709,13 +728,13 @@ window.saveItem=()=>{
     ?update(ref(db,`items/${activeProjId}/${editingItemId}`),payload)
     :push(ref(db,`items/${activeProjId}`),payload);
   closeModal('modal-item');
-  showToast(editingItemId?'Item updated':'Item added');
+  showToast(editingItemId?'Work item updated':'Work item added');
   editingItemId=null;
 };
 window.deleteItem=id=>{
-  if (!confirm('Delete this item?')) return;
+  if (!confirm('Delete this work item? Its payment history will also be removed.')) return;
   remove(ref(db,`items/${activeProjId}/${id}`));
-  showToast('Item deleted');
+  showToast('Work item deleted');
 };
 
 // ── PAYMENT MODAL ─────────────────────────────────────────────────────────────
@@ -724,7 +743,7 @@ window.openPayModal=id=>{
   const item=allItems[activeProjId]?.[id];
   if (!item) return;
   const rem=finalAmount(item)-paidTotal(item);
-  document.getElementById('pay-item-label').innerHTML=`<strong>${item.name}</strong><br>Total: ${fmt(finalAmount(item))} · Remaining: <span style="color:var(--orange)">${fmt(Math.max(0,rem))}</span>`;
+  document.getElementById('pay-item-label').innerHTML=`<strong>${item.name}</strong><br>Total: ${fmt(finalAmount(item))} · Pending: <span style="color:var(--orange)">${fmt(Math.max(0,rem))}</span>`;
   document.getElementById('p-amount').value=Math.max(0,rem).toFixed(2);
   document.getElementById('p-method').value=item.method||'cash';
   document.getElementById('p-date').value=new Date().toISOString().slice(0,10);
