@@ -330,10 +330,7 @@ onValue(ref(db,'items'), snap => {
 const fmt = n => '$'+(Math.round(n*100)/100).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
 
 function isArchived(project) {
-  if (!project) return false;
-  if (project.archived === true) return true;
-  const status = String(project.status ?? project.state ?? '').trim().toLowerCase();
-  return ['archived','complete','completed'].includes(status);
+  return project?.archived === true;
 }
 
 function finalAmount(item) {
@@ -620,16 +617,30 @@ window.saveProject=()=>{
   showToast(editingProjId?'Project updated':'Project created');
   editingProjId=null;
 };
-window.archiveProject=pid=>{
+window.archiveProject=async pid=>{
   const project=allProjects[pid];
   if (!project||!confirm(`Archive "${project.name}"? It will be hidden from active project views but kept with all of its items.`)) return;
-  update(ref(db,'projects/'+pid),{archived:true,status:'archived',archivedAt:Date.now()});
-  if (activeProjId===pid) activeProjId=null;
-  showToast('Project archived');
+  try {
+    await update(ref(db,'projects/'+pid),{archived:true,status:'archived',archivedAt:Date.now()});
+    if (allProjects[pid]?.archived !== true) throw new Error('Firebase did not confirm the archive');
+    if (activeProjId===pid) activeProjId=null;
+    showToast('Project archived');
+  } catch (error) {
+    console.error('Archive failed',error);
+    showToast('Archive failed — check Firebase access');
+  }
 };
-window.restoreProject=pid=>{
-  update(ref(db,'projects/'+pid),{archived:null,status:null,archivedAt:null});
-  showToast('Project restored');
+window.restoreProject=async pid=>{
+  const project=allProjects[pid];
+  if (!project) return;
+  try {
+    await update(ref(db,'projects/'+pid),{archived:null,status:null,archivedAt:null});
+    if (allProjects[pid]?.archived === true) throw new Error('Firebase did not confirm the restore');
+    showToast('Project restored');
+  } catch (error) {
+    console.error('Restore failed',error);
+    showToast('Restore failed — check Firebase access');
+  }
 };
 window.deleteProject=pid=>{
   const cnt=Object.keys(allItems[pid]||{}).length;
